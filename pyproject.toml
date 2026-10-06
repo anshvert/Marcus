@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "marcus-agent"
+version = "0.1.0"
+description = "A personal manager agent with user-owned memory"
+requires-python = ">=3.9"
+dependencies = ["pypdf>=5.0"]
+
+[project.scripts]
+marcus = "marcus.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["marcus*"]
