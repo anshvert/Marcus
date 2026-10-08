@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from marcus.style import StyleProfileStore, StyleProposal
+from marcus.memory.style import StyleProfileStore, StyleProposal
 
 
 class StyleProfileStoreTests(unittest.TestCase):

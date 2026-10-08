@@ -3,7 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from marcus.events import AuditLog, format_event, read_events
+from marcus.observability.audit import AuditLog, format_event, read_events
 
 
 class AuditLogTests(unittest.TestCase):

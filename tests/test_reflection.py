@@ -3,9 +3,9 @@ import threading
 import unittest
 from pathlib import Path
 
-from marcus.events import AuditLog, read_events
-from marcus.reflection import BackgroundReflector, ReflectionResult
-from marcus.style import StyleProfileStore, StyleProposal
+from marcus.agents.curator import BackgroundReflector, ReflectionResult
+from marcus.memory.style import StyleProfileStore, StyleProposal
+from marcus.observability.audit import AuditLog, read_events
 
 
 class BlockingReflectionClient:
@@ -23,7 +23,7 @@ class BlockingReflectionClient:
 
 
 class EmptyMemoryCurator:
-    def apply(self, decisions, *, retrieved_ids):
+    def apply(self, decisions, *, retrieved_ids, source="automatic"):
         return []
 
 

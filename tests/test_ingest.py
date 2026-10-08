@@ -2,14 +2,18 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from marcus.ingest import DocumentIngestor
-from marcus.knowledge import KnowledgeStore
+from marcus.knowledge.ingest import DocumentIngestor
+from marcus.knowledge.store import KnowledgeStore
 
 
 class FakeEmbeddings:
     model = "fake/embedding"
 
+    def __init__(self):
+        self.calls = []
+
     def embed(self, texts, *, input_type, turn_id=None):
+        self.calls.append((list(texts), input_type))
         vectors = []
         for text in texts:
             lowered = text.lower()
@@ -43,9 +47,11 @@ class DocumentIngestorTests(unittest.TestCase):
             self.assertEqual("indexed", result.embedding_status)
             self.assertGreaterEqual(result.chunk_count, 1)
             self.assertTrue(Path(result.extracted_path).exists())
+            embeddings.calls.clear()
             hits = store.search("What Python experience do I have?")
             self.assertTrue(hits)
             self.assertIn("Python", hits[0].text)
+            self.assertEqual([], embeddings.calls)
 
     def test_duplicate_source_is_not_reingested(self) -> None:
         with TemporaryDirectory() as directory:
@@ -61,6 +67,26 @@ class DocumentIngestorTests(unittest.TestCase):
             self.assertFalse(first.duplicate)
             self.assertTrue(second.duplicate)
             self.assertEqual(first.document_id, second.document_id)
+
+    def test_semantic_search_remains_fallback_when_words_do_not_overlap(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "notes.md"
+            source.write_text("# Notes\n\nA durable reference note.", encoding="utf-8")
+            embeddings = FakeEmbeddings()
+            store = KnowledgeStore(root / "knowledge.sqlite", embeddings=embeddings)
+            ingestor = DocumentIngestor(
+                store,
+                vault_path=root / "vault",
+                embeddings=embeddings,
+            )
+            ingestor.ingest(str(source))
+            embeddings.calls.clear()
+
+            hits = store.search("persistent facts")
+
+            self.assertTrue(hits)
+            self.assertEqual("search_query", embeddings.calls[0][1])
 
 
 if __name__ == "__main__":

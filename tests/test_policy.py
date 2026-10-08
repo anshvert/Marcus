@@ -1,6 +1,6 @@
 import unittest
 
-from marcus.policy import ActionPolicy, Risk
+from marcus.core.policy import ActionPolicy, Risk
 
 
 class ActionPolicyTests(unittest.TestCase):

@@ -1,32 +1,58 @@
 import unittest
 
-from marcus.jev import JevRouter
+from marcus.tools.jev import JevDecisionTool
 
 
-class JevRouterTests(unittest.TestCase):
-    def test_obvious_greeting_uses_zero_api_fast_path(self) -> None:
-        router = JevRouter(api_key=None)
+class JevDecisionToolTests(unittest.TestCase):
+    def test_parses_casual_intent_without_enabling_context_subsystems(self) -> None:
+        tool = JevDecisionTool(api_key="unused")
 
-        decision = router.classify("yo whts up")
+        decision = tool._parse(
+            {
+                "answers": {
+                    "intent": {
+                        "choice": "casual",
+                        "confidence": 0.96,
+                        "probabilities": {"casual": 0.97, "general": 0.03},
+                    },
+                    "needs_memory": {"noul": 0.03},
+                    "needs_knowledge": {"noul": 0.01},
+                    "needs_reflection": {"noul": 0.08},
+                }
+            }
+        )
 
-        self.assertEqual(decision.intent, "social")
-        self.assertEqual(decision.source, "deterministic")
+        self.assertEqual(decision.intent, "casual")
+        self.assertEqual(decision.source, "jev")
         self.assertFalse(decision.needs_memory)
         self.assertFalse(decision.needs_knowledge)
         self.assertFalse(decision.needs_reflection)
 
-    def test_explicit_ingestion_routes_to_data_agent_without_api(self) -> None:
-        router = JevRouter(api_key=None)
+    def test_parses_data_agent_intent(self) -> None:
+        tool = JevDecisionTool(api_key="unused")
 
-        decision = router.classify('ingest my resume at "/tmp/resume.pdf"')
+        decision = tool._parse(
+            {
+                "answers": {
+                    "intent": {
+                        "choice": "data_agent",
+                        "confidence": 0.98,
+                        "probabilities": {"data_agent": 0.99, "general": 0.01},
+                    },
+                    "needs_memory": {"noul": 0.02},
+                    "needs_knowledge": {"noul": 0.1},
+                    "needs_reflection": {"noul": 0.01},
+                }
+            }
+        )
 
         self.assertEqual(decision.intent, "data_agent")
-        self.assertEqual(decision.source, "deterministic")
+        self.assertEqual(decision.source, "jev")
 
     def test_parses_typed_jev_answers(self) -> None:
-        router = JevRouter(api_key="unused", threshold=0.65)
+        tool = JevDecisionTool(api_key="unused", threshold=0.65)
 
-        decision = router._parse(
+        decision = tool._parse(
             {
                 "answers": {
                     "intent": {
@@ -45,6 +71,16 @@ class JevRouterTests(unittest.TestCase):
         self.assertTrue(decision.needs_knowledge)
         self.assertFalse(decision.needs_memory)
         self.assertFalse(decision.needs_reflection)
+
+    def test_unavailable_jev_has_one_neutral_fallback_not_phrase_rules(self) -> None:
+        tool = JevDecisionTool(api_key="unused")
+
+        greeting = tool._fallback()
+        ingestion = tool._fallback()
+
+        self.assertEqual(greeting.intent, "general")
+        self.assertEqual(ingestion.intent, "general")
+        self.assertFalse(hasattr(tool, "_deterministic"))
 
 
 if __name__ == "__main__":

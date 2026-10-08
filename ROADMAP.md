@@ -16,10 +16,10 @@
 - Hybrid semantic and keyword document retrieval
 - JEV intent routing and memory/knowledge/reflection gates
 - Initial delegated data agent for PDF/Markdown ingestion
-- Add a formal provider-neutral `Brain` protocol
-- Add a local/OpenAI-compatible adapter
-- Keep prompts, identity, memory, and tools outside provider-specific code
-- Add conversation transcripts and explicit memory extraction proposals
+- Provider-neutral brain/transport contracts and compatible endpoints (complete)
+- Persisted transcripts and bounded session context (complete)
+- Daily fact files, profile views, and rebuildable SQLite memory index (complete)
+- Progressive local workflow skill discovery (complete)
 - Build a small evaluation set from real Marcus requests
 
 ## Phase 2 — safe tools
@@ -30,18 +30,19 @@
 - Create notes and reminders
 - Add dry-run previews, audit history, and confirmations
 
-## Phase 3 — voice
+## Phase 3 — voice (in progress)
 
 - Local wake word and voice-activity detection
-- Streaming speech recognition and speech synthesis
-- Interruption support
+- Streaming speech recognition
+- Streaming speech synthesis (initial macOS system-voice backend complete)
+- Interruption support (typed-turn interruption complete)
 - Speaker verification for privileged requests
 
 ## Phase 4 — delegation
 
-- Durable background job manager
-- Specialist registry and typed task/result contracts
-- Codex adapter for coding tasks
+- Gateway, serialized jobs, saved status, cancellation, crash recovery (complete)
+- Explicit specialist registry and optional sandboxed Codex CLI agent (complete)
+- True resumable workflows and independent specialist lanes
 - Research and document specialists
 - Progress events, cancellation, budgets, and verification gates
 
@@ -56,15 +57,20 @@
 ## Target architecture
 
 ```text
-voice / text / robot
+terminal / gateway client / future voice and robot
+        |
+        v
+shared runtime + persisted sessions + live event bus
         |
         v
 Marcus conversation manager
         |
         v
-JEV router + memory + policy + job manager
+JEV decision tool + memory + policy + job manager
         |
         +-------- data agent + typed ingestion tools
         +-------- deterministic workflows
-        +-------- specialist agents
+        +-------- optional Codex CLI coding specialist
+        +-------- on-demand workflow skills
+        +-------- future device nodes and specialists
 ```

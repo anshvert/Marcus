@@ -1,6 +1,6 @@
 import unittest
 
-from marcus.data_agent import DataAgent
+from marcus.agents.data import DataAgent
 
 
 class DataAgentTests(unittest.TestCase):

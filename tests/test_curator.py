@@ -2,9 +2,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from marcus.brain import MemoryDecision
-from marcus.curator import MemoryCurator
-from marcus.memory import MarkdownMemoryStore
+from marcus.agents.manager import MemoryDecision
+from marcus.memory.curation import MemoryCurator
+from marcus.memory.store import MarkdownMemoryStore
 
 
 def decision(**overrides):
