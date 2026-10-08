@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Marcus Trace</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090b10;
+      --panel: rgba(20, 24, 34, .82);
+      --line: #252b3a;
+      --text: #edf1f7;
+      --muted: #8d96a8;
+      --cyan: #67e8f9;
+      --violet: #a78bfa;
+      --green: #6ee7b7;
+      --amber: #fbbf24;
+      --red: #fb7185;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% -10%, rgba(103,232,249,.13), transparent 34%),
+        radial-gradient(circle at 92% 8%, rgba(167,139,250,.13), transparent 28%),
+        var(--bg);
+      font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 30px 0 60px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    h1 { margin: 0; font: 650 26px/1.1 system-ui, sans-serif; letter-spacing: -.02em; }
+    h1 span { color: var(--cyan); }
+    .subtitle { color: var(--muted); margin-top: 7px; }
+    .live { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+    .dot { width: 9px; height: 9px; border-radius: 99px; background: var(--amber); box-shadow: 0 0 16px currentColor; }
+    .live.connected .dot { color: var(--green); background: var(--green); }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 26px 0 20px; }
+    .stat, .toolbar, .event { border: 1px solid var(--line); background: var(--panel); backdrop-filter: blur(16px); }
+    .stat { padding: 15px 17px; border-radius: 14px; }
+    .stat-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .09em; }
+    .stat-value { margin-top: 6px; font-size: 22px; font-weight: 650; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px; border-radius: 14px; }
+    input, select, button { font: inherit; color: var(--text); background: #10141d; border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; }
+    input { flex: 1; min-width: 220px; }
+    button { cursor: pointer; }
+    button:hover { border-color: #46506a; }
+    #timeline { display: grid; gap: 9px; margin-top: 14px; }
+    .event { position: relative; overflow: hidden; border-radius: 13px; padding: 12px 14px; animation: arrive .22s ease-out; }
+    @keyframes arrive { from { opacity: .15; transform: translateY(-5px); } }
+    .event::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--accent, var(--muted)); }
+    .event-head { display: grid; grid-template-columns: 88px minmax(210px, 1fr) auto; align-items: center; gap: 12px; }
+    .clock, .turn { color: var(--muted); }
+    .name { font-weight: 700; color: var(--accent, var(--text)); overflow-wrap: anywhere; }
+    .duration { color: var(--green); font-weight: 700; }
+    .summary { color: #cbd3e1; margin: 8px 0 0 100px; overflow-wrap: anywhere; }
+    .bar { height: 2px; width: var(--width, 0%); background: var(--accent, var(--green)); position: absolute; bottom: 0; left: 0; opacity: .7; }
+    details { margin: 9px 0 0 100px; color: var(--muted); }
+    summary { cursor: pointer; user-select: none; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 380px; overflow: auto; padding: 11px; border-radius: 9px; background: #090c12; color: #c8d0de; }
+    .empty { text-align: center; color: var(--muted); padding: 70px 20px; }
+    .model { --accent: var(--cyan); }
+    .tool, .agent { --accent: var(--violet); }
+    .memory, .knowledge { --accent: var(--green); }
+    .voice { --accent: #f0abfc; }
+    .curator, .jev, .embedding { --accent: var(--amber); }
+    .failed { --accent: var(--red); }
+    @media (max-width: 720px) {
+      .stats { grid-template-columns: 1fr 1fr; }
+      .event-head { grid-template-columns: 72px 1fr; }
+      .duration { grid-column: 2; }
+      .summary, details { margin-left: 84px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1><span>Marcus</span> execution trace</h1>
+        <div class="subtitle">Live model, tool, memory, knowledge, curator, and voice events</div>
+      </div>
+      <div id="live" class="live"><span class="dot"></span><span id="connection">connecting</span></div>
+    </header>
+
+    <section class="stats">
+      <div class="stat"><div class="stat-label">First readable text</div><div id="ttft" class="stat-value">—</div></div>
+      <div class="stat"><div class="stat-label">Model request</div><div id="modelTime" class="stat-value">—</div></div>
+      <div class="stat"><div class="stat-label">Foreground turn</div><div id="turnTime" class="stat-value">—</div></div>
+      <div class="stat"><div class="stat-label">Events loaded</div><div id="eventCount" class="stat-value">0</div></div>
+      <div class="stat"><div class="stat-label">Audio preparation</div><div id="synthesisTime" class="stat-value">—</div></div>
+      <div class="stat"><div class="stat-label">Audio queue wait</div><div id="voiceWait" class="stat-value">—</div></div>
+    </section>
+
+    <section class="toolbar">
+      <input id="search" type="search" placeholder="Filter events, actions, summaries…">
+      <select id="category">
+        <option value="all">All systems</option>
+        <option value="model">Model</option>
+        <option value="tool">Tools</option>
+        <option value="memory">Memory</option>
+        <option value="knowledge">Knowledge</option>
+        <option value="voice">Voice</option>
+        <option value="curator">Curator</option>
+        <option value="jev">JEV</option>
+        <option value="job">Jobs</option>
+        <option value="policy">Policy</option>
+        <option value="skill">Skills</option>
+        <option value="coding_agent">Coding specialist</option>
+      </select>
+      <input id="session" type="search" placeholder="Session or turn id…" style="max-width:230px">
+      <button id="clear">Clear view</button>
+    </section>
+
+    <section id="timeline"><div class="empty">Waiting for Marcus events…</div></section>
+  </main>
+  <script>
+    const state = { events: [], seen: new Set() };
+    const timeline = document.querySelector('#timeline');
+    const search = document.querySelector('#search');
+    const category = document.querySelector('#category');
+    const session = document.querySelector('#session');
+    const expanded = new Set();
+
+    function group(name) {
+      return name.split('.')[0] || 'other';
+    }
+
+    function milliseconds(value) {
+      return Number.isFinite(Number(value)) ? `${Number(value).toLocaleString()} ms` : '—';
+    }
+
+    function describe(record) {
+      const d = record.data || {};
+      if (record.event === 'turn.received') return `User: ${d.input || ''}`;
+      if (record.event.startsWith('tool.')) return [d.tool, d.action].filter(Boolean).join(' · ');
+      if (record.event === 'model.request.started') return `${d.model || 'model'} · ${d.prompt_manifest?.message_count || d.message_count || 0} messages`;
+      if (record.event === 'model.request.completed') return `${d.model || 'model'} · ${d.usage?.total_tokens || 0} tokens`;
+      if (record.event === 'model.stream.first_output') return `${d.output_type || 'output'} began streaming`;
+      if (record.event === 'jev.decision') return `${d.intent} · confidence ${d.confidence}`;
+      if (record.event === 'voice.started') return `${d.text || ''} · queued ${milliseconds(d.queue_wait_ms)}`;
+      if (record.event.startsWith('voice.')) return d.text || d.summary || d.status || '';
+      if (record.event === 'job.started') return `Queue wait: ${milliseconds(d.queue_wait_ms)}`;
+      if (record.event === 'policy.evaluated') return `${d.action || ''} · ${d.summary || d.status || ''}`;
+      if (record.event === 'skill.loaded') return `${d.name || ''} · revision ${d.revision || ''}`;
+      if (record.event === 'knowledge.retrieval.completed') return `${d.hit_count || 0} document chunks retrieved`;
+      if (record.event === 'memory.retrieval.completed') return `${d.result_count || 0} memories retrieved`;
+      return d.summary || d.status || '';
+    }
+
+    function render() {
+      const query = search.value.trim().toLowerCase();
+      const selected = category.value;
+      const scope = session.value.trim().toLowerCase();
+      const filtered = state.events.filter(record => {
+        const haystack = `${record.event} ${describe(record)} ${record.turn_id || ''}`.toLowerCase();
+        return (!query || haystack.includes(query)) && (selected === 'all' || group(record.event) === selected)
+          && (!scope || `${record.session_id} ${record.turn_id}`.toLowerCase().includes(scope));
+      });
+      timeline.replaceChildren();
+      if (!filtered.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'No matching events.';
+        timeline.append(empty);
+        return;
+      }
+      for (const record of [...filtered].reverse()) timeline.append(eventCard(record));
+    }
+
+    function eventCard(record) {
+      const d = record.data || {};
+      const card = document.createElement('article');
+      card.className = `event ${group(record.event)} ${d.status === 'failed' || record.event.endsWith('.failed') ? 'failed' : ''}`;
+      const head = document.createElement('div');
+      head.className = 'event-head';
+      const clock = document.createElement('div');
+      clock.className = 'clock';
+      const date = new Date(record.timestamp);
+      clock.textContent = Number.isNaN(date.valueOf()) ? record.timestamp : date.toLocaleTimeString([], {hour12:false});
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = record.event;
+      const duration = document.createElement('div');
+      duration.className = 'duration';
+      duration.textContent = milliseconds(d.duration_ms);
+      head.append(clock, name, duration);
+      card.append(head);
+      const text = describe(record);
+      if (text) {
+        const summary = document.createElement('div');
+        summary.className = 'summary';
+        summary.textContent = text;
+        card.append(summary);
+      }
+      const details = document.createElement('details');
+      details.open = expanded.has(record.event_id);
+      details.addEventListener('toggle', () => {
+        if (details.isConnected) {
+          if (details.open) expanded.add(record.event_id); else expanded.delete(record.event_id);
+        }
+      });
+      const label = document.createElement('summary');
+      label.textContent = `${record.session_id || 'session'} · ${record.turn_id ? `turn ${record.turn_id} · ` : ''}details`;
+      const pre = document.createElement('pre');
+      pre.textContent = JSON.stringify(d, null, 2);
+      details.append(label, pre);
+      card.append(details);
+      if (Number.isFinite(Number(d.duration_ms))) {
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        bar.style.setProperty('--width', `${Math.min(100, Math.max(3, Math.log10(Number(d.duration_ms) + 1) * 28))}%`);
+        card.append(bar);
+      }
+      return card;
+    }
+
+    function updateStats(record) {
+      const d = record.data || {};
+      if (record.event === 'model.stream.first_text') document.querySelector('#ttft').textContent = milliseconds(d.duration_ms);
+      if (record.event === 'voice.synthesis.completed') document.querySelector('#synthesisTime').textContent = milliseconds(d.duration_ms);
+      if (record.event === 'voice.started') document.querySelector('#voiceWait').textContent = milliseconds(d.queue_wait_ms);
+      if (record.event === 'model.request.completed') document.querySelector('#modelTime').textContent = milliseconds(d.duration_ms);
+      if (record.event === 'turn.completed') document.querySelector('#turnTime').textContent = milliseconds(d.duration_ms);
+      document.querySelector('#eventCount').textContent = state.events.length.toLocaleString();
+    }
+
+    const source = new EventSource('/events?limit=250');
+    source.onopen = () => {
+      document.querySelector('#live').classList.add('connected');
+      document.querySelector('#connection').textContent = 'live';
+    };
+    source.onerror = () => {
+      document.querySelector('#live').classList.remove('connected');
+      document.querySelector('#connection').textContent = 'reconnecting';
+    };
+    source.onmessage = message => {
+      const record = JSON.parse(message.data);
+      if (state.seen.has(record.event_id)) return;
+      state.seen.add(record.event_id);
+      state.events.push(record);
+      if (state.events.length > 1000) {
+        const removed = state.events.shift();
+        state.seen.delete(removed.event_id);
+        expanded.delete(removed.event_id);
+      }
+      updateStats(record);
+      if (!state.pendingRender) {
+        state.pendingRender = true;
+        requestAnimationFrame(() => { state.pendingRender = false; render(); });
+      }
+    };
+    search.addEventListener('input', render);
+    category.addEventListener('change', render);
+    session.addEventListener('input', render);
+    document.querySelector('#clear').addEventListener('click', () => {
+      state.events = [];
+      state.seen.clear();
+      expanded.clear();
+      render();
+      document.querySelector('#eventCount').textContent = '0';
+    });
+  </script>
+</body>
+</html>
